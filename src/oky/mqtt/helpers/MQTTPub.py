@@ -22,8 +22,7 @@ class MQTTPub(Thread,ABC):
         while not self.stop_event.is_set():
             try:
                 data = self.data_queue.popleft()
-                time_check = data[0]>self.last_msg_time+self.TIME_LIMIT and self.TIME_LIMIT>0
-                self.loop(data,time_check)
+                self.loop(data)
             except IndexError:
                 time.sleep(0.1)
                 continue
@@ -47,7 +46,7 @@ class MQTTPub(Thread,ABC):
             self.logger.error("Error sending message {}".format(info.rc))
     
     @abstractmethod
-    def loop(self,data,time_check):
+    def loop(self,data):
         pass
         
     def cleanup(self):

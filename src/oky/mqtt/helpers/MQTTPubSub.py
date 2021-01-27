@@ -27,30 +27,47 @@ class Callbacks():
         if rc == 0:
             client.connected_flag = True
             self.is_connected.set()
-            if self.logger: self.logger.info("Client {} connection: SUCCESS".format(client._client_id))
+            self.logger.info("Client {} connection: SUCCESS".format(client._client_id))
             if self.status_topic: self.publish_queue.append(build_status_msg(1,self.status_topic))
         else:
             client.connected_flag = False
             self.is_connected.clear()
-            if self.logger: self.logger.error("Client {} connection: FAIL {}".format(client._client_id, rc))
+            self.logger.error("Client {} connection: FAIL {}".format(client._client_id, rc))
             if self.status_topic: self.publish_queue.append(build_status_msg(0,self.status_topic))
     
     def on_disconnect(self, client, userdata, rc, properties=None):
         client.connected_flag = False
         self.is_connected.clear()
         if rc == 0:
-            if self.logger: self.logger.info("Client {} is disconnected.".format(client._client_id))
+            self.logger.info("Client {} is disconnected.".format(client._client_id))
         else:
-            if self.logger: self.logger.error("Client {} is disconnected: {}.".format(client._client_id,rc))
+            self.logger.error("Client {} is disconnected: {}.".format(client._client_id,rc))
 
     def on_message(self, client, userdata, message):
         self.onmessage_queue.append(message)
-        if self.logger: self.logger.info("Msg received topic: {}, payload: {}".format(message.topic, message.payload))
+        self.logger.info("Msg received topic: {}, payload: {}".format(message.topic, message.payload))
 
     def register(self, client):
         client.on_message = self.on_message
         client.on_connect = self.on_connect
         client.on_disconnect = self.on_disconnect
+
+
+class DummyLogger:
+    def debug(self,msg):
+        pass
+
+    def info(self,msg):
+        pass
+    
+    def error(self,msg):
+        pass
+    
+    def warning(self,msg):
+        pass
+    
+    def fatal(self,msg):
+        pass
 
 
 class MQTTPubSub(Thread):
@@ -59,14 +76,18 @@ class MQTTPubSub(Thread):
             client_config, stop_event,
             status_topic=None, sub_topics=None, logger=None, name="mqtt_pubsub",
             *args, **kwargs):
+        if logger is None:
+            logger = DummyLogger()
         self.status_topic = status_topic
         self.client_config = client_config
         self.publish_queue = deque()
         self.onmessage_queue = deque()
         self.stop_event = stop_event
         self.is_connected = Event()
+
         self.client = mqttc.Client(protocol=mqttc.MQTTv5)
         self.client.enable_logger(logger)
+
         self.callbacks = Callbacks(
             self.onmessage_queue, 
             self.publish_queue,
@@ -74,9 +95,9 @@ class MQTTPubSub(Thread):
             status_topic=self.status_topic,
             logger=logger)
         self.callbacks.register(self.client)
+
         self.sub_topics = sub_topics
         self.logger = logger
-        self.last_msg = None
         super().__init__(name=name, *args, **kwargs)
 
     def run(self):
@@ -87,6 +108,15 @@ class MQTTPubSub(Thread):
             ret = self._loop()
         self._cleanup()
     
+    def publish_msg(self, mqtt_msg):
+        self.publish_queue.append(mqtt_msg)
+    
+    def get_msg(self):
+        try:
+            return self.onmessage_queue.popleft()
+        except IndexError:
+            return None
+
     def _subscribe(self):
         self.logger.info(self.sub_topics)
         self.client.subscribe(self.sub_topics,options=SubscribeOptions(1, noLocal=True))
@@ -119,7 +149,7 @@ class MQTTPubSub(Thread):
             self.is_connected = True
         ret = self._publish(mqtt_msg)
         if ret == 0:
-            self.last_msg = mqtt_msg
+            self.logger.debug("Publish successful")
         return ret
 
     def _publish(self, mqtt_msg):
