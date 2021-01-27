@@ -119,7 +119,8 @@ class MQTTPubSub(Thread):
 
     def _subscribe(self):
         self.logger.info(self.sub_topics)
-        self.client.subscribe(self.sub_topics,options=SubscribeOptions(1, noLocal=True))
+        if self.sub_topics is not None:
+            self.client.subscribe(self.sub_topics,options=SubscribeOptions(1, noLocal=True))
 
     def _connect(self):
         self.logger.info("Connecting. Client config: {}".format(self.name))
@@ -180,7 +181,8 @@ class MQTTPubSub(Thread):
         if self.status_topic:
             self._publish(build_status_msg(0,self.status_topic))
         self.logger.info("Client disconnecting. Un-subscribing...")
-        self.client.unsubscribe([x[0] for x in self.sub_topics])
+        if self.sub_topics is not None:
+            self.client.unsubscribe([x[0] for x in self.sub_topics])
         self.client.loop_stop()
         self.client.disconnect()
         self.client.reinitialise()
