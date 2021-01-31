@@ -4,6 +4,7 @@ import paho.mqtt.publish as publish
 import time
 from datetime import datetime
 
+
 def get_utc_timestamp(timestamp):
     return datetime.utcfromtimestamp(timestamp).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3]+'Z'
 
@@ -19,12 +20,12 @@ class UTCISOFormatter(logging.Formatter):
         return s
 
 
-class MQTTHandler(logging.Handler):
+class MQTTLoggingHandler(logging.Handler):
     DEFAULT_FMT = UTCISOFormatter(
         '{"timestamp": "%(asctime)s","levelno": %(levelno)s, "line":%(lineno)s, "message": "%(levelname)s: %(message)s" }'
     )
     DEFAULT_TOPIC_FMT = logging.Formatter(
-        '%(processName)s/%(threadName)s/%(levelname)s'
+        '%(module)s/%(threadName)s/%(levelname)s'
     )
     """
     A handler class which writes logging records, appropriately formatted,
@@ -94,11 +95,13 @@ class MQTTHandler(logging.Handler):
             protocol=self.protocol, transport=self.transport)
 
 if __name__ == "__main__":
+    from multiprocessing import current_process
+    current_process().name = __name__
     hostname = '192.168.178.11'
     topic = 'logs'
 
     # Create MQTT handler
-    myHandler = MQTTHandler(hostname, topic)
+    myHandler = MQTTLoggingHandler(hostname, topic)
     myHandler.setLevel(logging.DEBUG)
 
     # Create and configure a logger instance
