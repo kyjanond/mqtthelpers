@@ -3,6 +3,7 @@ from paho.mqtt.subscribeoptions import SubscribeOptions
 import time
 from threading import Thread, Event
 from collections import deque
+from datetime import datetime
 
 
 def build_status_msg(status, status_topic):
@@ -12,7 +13,6 @@ def build_status_msg(status, status_topic):
     msg.retain = True
     msg.properties = None
     return msg
-
 
 class Callbacks():
     def __init__(self, onmessage_queue, publish_queue, is_connected, status_topic=None, logger=None, *args, **kwargs):
